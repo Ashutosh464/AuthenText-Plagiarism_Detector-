@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AuthenText</title>
+
+  <!-- ✅ Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- ✅ Three.js + Vanta.js for animated background -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r121/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vanta@latest/dist/vanta.waves.min.js"></script>
+
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+
+    #vanta-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: 0;
+    }
+
+    #vanta-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(0,0,0,0.35);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .container-3d {
+      position: relative;
+      z-index: 2;
+      max-width: 950px;
+      margin: auto;
+      background: rgba(255,255,255,0.95);
+      border-radius: 18px;
+      box-shadow: 0 16px 48px rgba(0,0,0,0.25);
+      padding: 2.5rem 2rem 2rem 2rem;
+    }
+
+    #results-table th, #results-table td {
+      border: 1px solid #e5e7eb;
+      padding: 0.7em;
+      text-align: center;
+      background: rgba(255,255,255,0.92);
+    }
+
+    #results-table th {
+      background: #e0f2f1;
+      color: #00796b;
+      font-weight: bold;
+    }
+
+    #floating-robot-assistant {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      animation: floatRobot 4s ease-in-out infinite;
+    }
+
+    @keyframes floatRobot {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-15px); }
+    }
+
+    .robot-speech-bubble {
+      background: #80b6e8;
+      color: #000;
+      border-radius: 16px;
+      padding: 1.1rem 1.4rem;
+      font-size: 1.05rem;
+      margin-bottom: 1.2rem;
+      max-width: 300px;
+    }
+
+    .robot-svg {
+      width: 80px;
+      height: 80px;
+    }
+  </style>
+</head>
+<body>
+  <!-- ✅ Vanta.js animated background -->
+  <div id="vanta-bg"></div>
+  <div id="vanta-overlay"></div>
+
+  <div class="container-3d">
+    <h1 class="text-3xl font-extrabold text-center mb-6 text-green-800">AuthenText</h1>
+
+    <div class="mb-4">
+      <label class="block font-semibold mb-2">Upload up to 10 .txt or .pdf files</label>
+      <input id="file-input" type="file" multiple accept=".txt,.pdf" class="mb-2 border rounded px-2 py-1" />
+      <ul id="file-list" class="mb-2"></ul>
+      <button id="remove-selected" class="bg-red-500 text-white px-2 py-1 rounded text-sm mb-2">Remove Selected</button>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-4 mb-4">
+      <label><input type="radio" name="compareMode" value="each-other" checked /> Compare files with each other</label>
+      <label><input type="radio" name="compareMode" value="reference" /> Compare with reference file</label>
+      <label>Threshold: <input id="threshold" type="number" min="1" max="100" value="75" class="w-16 border rounded px-1" />%</label>
+      <label>Chunk Size: <input id="chunk-size" type="number" min="1" value="20" class="w-20 border rounded px-1" /> words</label>
+    </div>
+
+    <div id="reference-section" class="mb-4 hidden">
+      <label class="block font-semibold mb-2">Upload Reference File</label>
+      <input id="reference-file" type="file" accept=".txt,.pdf" class="border rounded px-2 py-1" />
+    </div>
+
+    <button id="analyzeBtn" class="bg-green-700 text-white px-6 py-2 rounded shadow-lg mb-2" disabled>Analyze</button>
+    <span id="progress" class="ml-4 text-blue-600 hidden">Analyzing...</span>
+
+    <div id="results-section" class="mt-8 hidden">
+      <h2 class="text-xl font-semibold mb-2 text-green-800">Results</h2>
+      <table class="min-w-full border border-gray-300 rounded-xl shadow-lg" id="results-table">
+        <thead>
+          <tr>
+            <th>File 1</th>
+            <th>File 2 / Similar File</th>
+            <th>Similarity (%)</th>
+            <th>Above Threshold</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <button id="downloadCSV" class="bg-blue-600 text-white px-3 py-1 rounded mt-2 hidden">Export to CSV</button>
+    </div>
+  </div>
+
+  <!-- ✅ Floating assistant -->
+  <div id="floating-robot-assistant">
+    <div class="robot-speech-bubble">
+      🤖 <b>Hi, I'm Codey!</b><br>
+      <ul class="list-disc pl-5 mt-1">
+        <li>Upload files (TXT or PDF)</li>
+        <li>Select comparison mode</li>
+        <li>Set threshold & chunk size</li>
+        <li>Click Analyze</li>
+        <li>Export to CSV</li>
+      </ul>
+    </div>
+    <svg class="robot-svg" viewBox="0 0 80 80" fill="none">
+      <ellipse cx="40" cy="50" rx="28" ry="22" fill="#b2dfdb"/>
+      <ellipse cx="40" cy="38" rx="24" ry="24" fill="#fff"/>
+      <ellipse cx="29" cy="38" rx="5" ry="5" fill="#26a69a"/>
+      <ellipse cx="51" cy="38" rx="5" ry="5" fill="#26a69a"/>
+      <rect x="34" y="56" width="12" height="6" rx="3" fill="#26a69a"/>
+      <rect x="36" y="18" width="8" height="8" rx="4" fill="#26a69a"/>
+      <rect x="12" y="34" width="6" height="12" rx="3" fill="#26a69a"/>
+      <rect x="62" y="34" width="6" height="12" rx="3" fill="#26a69a"/>
+      <circle cx="29" cy="38" r="2" fill="#fff"/>
+      <circle cx="51" cy="38" r="2" fill="#fff"/>
+      <rect x="37" y="44" width="6" height="3" rx="1.5" fill="#b2dfdb"/>
+    </svg>
+  </div>
+
+  <!-- ✅ Initialize Vanta background -->
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      VANTA.WAVES({
+        el: "#vanta-bg",
+        mouseControls: true,
+        touchControls: true,
+        minHeight: 200.00,
+        minWidth: 200.00,
+        scale: 1.00,
+        scaleMobile: 1.00,
+        color: 0x222222,
+        shininess: 30.00,
+        waveHeight: 20.00,
+        waveSpeed: 0.75,
+        zoom: 0.95,
+        backgroundColor: 0x000000
+      });
+    });
+  </script>
+
+  <!-- ✅ Link external script -->
+  <script src="script.js"></script>
+</body>
+</html>
